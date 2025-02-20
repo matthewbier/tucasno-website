@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tucasno Matching Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    header, footer {
+      background: #e8e8e8;
+      text-align: center;
+      padding: 20px;
+    }
+    nav {
+      background: #ccdad1;
+      text-align: center;
+      padding: 10px;
+    }
+    nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      color: #333;
+    }
+    main {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 10px;
+      background: #fff;
+      text-align: center;
+    }
+    #timer {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    /* Game board: 1200x700 with a subtle pastel gradient */
+    #game-board {
+      position: relative;
+      width: 1200px;
+      height: 700px;
+      margin: 20px auto;
+      border: 2px solid #ccc;
+      background: linear-gradient(135deg, #e0f7fa, #ffe0b2);
+    }
+    /* Drop zones (definitions) and term cards (draggables) are placed using grid cells */
+    .drop-zone, .draggable {
+      position: absolute;
+      width: 150px;
+      height: 50px;
+      line-height: 50px;
+      text-align: center;
+      font-weight: bold;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .drop-zone {
+      border: 2px dashed #aaa;
+      background: #fff;
+    }
+    .draggable {
+      border: 1px solid #999;
+      background: #ccdad1;
+      cursor: grab;
+    }
+    .matched {
+      background: #a3d2a1;
+      border-color: #777;
+    }
+    #reset-button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+    #completion-message {
+      font-size: 18px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Tucasno Matching Game</h1>
+    <p>Drag the correct term card onto its English definition.</p>
+  </header>
+  
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="vocabulary.html">Vocabulary</a>
+    <a href="game.html">Game</a>
+  </nav>
+  
+  <main>
+    <div id="timer">Time: 0 seconds</div>
+    <div id="game-board"></div>
+    <button id="reset-button">Reset Game</button>
+    <div id="completion-message"></div>
+  </main>
+  
+  <footer>
+    <h3>Gracias for Playing Tucasno!</h3>
+    <p>Keep practicing and enjoy the language!</p>
+  </footer>
+  
+  <script>
+    // A subset of vocabulary pairs for the game
+    const allPairs = [
+      { english: "Hello", tucasno: "hollosno" },
+      { english: "You", tucasno: "tuco" },
+      { english: "Beautiful", tucasno: "bafeello" },
+      { english: "Friend", tucasno: "friendiismo" },
+      { english: "Love", tucasno: "looviismo" },
+      { english: "My", tucasno: "mee" },
+      { english: "The", tucasno: "thee" },
+      { english: "What's up?", tucasno: "whatollo?" },
+      { english: "No way!", tucasno: "al bollosno!" },
+      { english: "Goodbye", tucasno: "adioisno" },
+      { english: "Let's go", tucasno: "vamoisno" },
+      { english: "Always", tucasno: "sempreesno" },
+      { english: "Man", tucasno: "manolo" },
+      { english: "Woman", tucasno: "woomasno" },
+      { english: "Boy", tucasno: "boyiismo" },
+      { english: "Girl", tucasno: "girliismo" },
+      { english: "Father", tucasno: "papatollo" },
+      { english: "Mother", tucasno: "mamaasno" },
+      { english: "Brother", tucasno: "brootollo" },
+      { english: "Sister", tucasno: "seeiistno" },
+      { english: "Baby", tucasno: "babiisno" },
+      { english: "My love", tucasno: "mee looviismo" },
+      { english: "Dog", tucasno: "bola" },
+      { english: "Cat", tucasno: "cala" },
+      { english: "Sun", tucasno: "suniisno" },
+      { english: "Moon", tucasno: "mooniismo" },
+      { english: "Stars", tucasno: "stariismo" },
+      { english: "Fire", tucasno: "fyeesno" },
+      { english: "Water", tucasno: "watereesno" },
+      { english: "Sky", tucasno: "skyisno" },
+      { english: "City", tucasno: "citeesno" },
+      { english: "House", tucasno: "houseesno" },
+      { english: "Door", tucasno: "dooreesno" },
+      { english: "Window", tucasno: "windeesno" },
+      { english: "Chair", tucasno: "chaireesmo" },
+      { english: "Table", tucasno: "tableesmo" },
+      { english: "Car", tucasno: "cariisno" },
+      { english: "Road", tucasno: "roadiisno" },
+      { english: "Sit down", tucasno: "siteesno" },
+      { english: "Stand up", tucasno: "standisno" },
+      { english: "Come here", tucasno: "veniismo" },
+      { english: "Go away", tucasno: "vallosno" },
+      { english: "Stop", tucasno: "stopollo" },
+      { english: "Wait", tucasno: "waitismo" },
+      { english: "Listen", tucasno: "leesmo" },
+      { english: "Speak", tucasno: "speakisno" },
+      { english: "Tell me", tucasno: "tellisno" },
+      { english: "Look!", tucasno: "lookisno!" },
+      { english: "Kiss", tucasno: "kisseesno" },
+      { english: "Want", tucasno: "wantisno" }
+    ];
+    
+    let selectedPairs = [];
+    let timerInterval;
+    let startTime = null;
+    let matchedCount = 0;
+    
+    const board = document.getElementById("game-board");
+    const timerDisplay = document.getElementById("timer");
+    const completionMessage = document.getElementById("completion-message");
+    
+    // Generate grid positions (cells) for the board.
+    // Board dimensions: 1200 x 700; cell size: 150 x 50
+    function generateGridPositions() {
+      const positions = [];
+      const cols = 8;  // 1200 / 150
+      const rows = 14; // 700 / 50
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          positions.push({ x: c * 150, y: r * 50 });
+        }
+      }
+      return positions;
+    }
+    
+    // Simple shuffle function
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+    
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      timerDisplay.textContent = "Time: " + elapsed + " seconds";
+    }
+    
+    function endGame() {
+      clearInterval(timerInterval);
+      const finalTime = Math.floor((Date.now() - startTime) / 1000);
+      completionMessage.textContent = "Congratulations! You matched all pairs in " + finalTime + " seconds.";
+    }
+    
+    function initializeGame() {
+      clearInterval(timerInterval);
+      startTime = null;
+      matchedCount = 0;
+      timerDisplay.textContent = "Time: 0 seconds";
+      completionMessage.textContent = "";
+      board.innerHTML = "";
+      
+      // Get grid positions and shuffle them.
+      const gridPositions = shuffle(generateGridPositions());
+      // We need 12 drop zones and 12 term cards = 24 positions.
+      const usedPositions = gridPositions.slice(0, 24);
+      
+      // Select 12 random pairs from the dataset.
+      selectedPairs = shuffle([...allPairs]).slice(0, 12);
+      
+      // Place drop zones (definitions) using the first 12 positions.
+      selectedPairs.forEach((pair, index) => {
+        const dropZone = document.createElement("div");
+        dropZone.className = "drop-zone";
+        dropZone.id = "drop-" + index;
+        dropZone.dataset.answer = pair.tucasno;
+        dropZone.textContent = pair.english;
+        dropZone.style.left = usedPositions[index].x + "px";
+        dropZone.style.top = usedPositions[index].y + "px";
+        // Enable dragover and drop events
+        dropZone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+        });
+        dropZone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const cardId = e.dataTransfer.getData("text/plain");
+          const card = document.getElementById(cardId);
+          if (card && card.textContent === dropZone.dataset.answer) {
+            dropZone.classList.add("matched");
+            card.parentNode.removeChild(card);
+            matchedCount++;
+            if (matchedCount === selectedPairs.length) {
+              endGame();
+            }
+          }
+        });
+        board.appendChild(dropZone);
+      });
+      
+      // Place term cards (draggables) using the next 12 positions.
+      selectedPairs.forEach((pair, index) => {
+        const termCard = document.createElement("div");
+        termCard.className = "draggable";
+        termCard.id = "term-" + index;
+        termCard.textContent = pair.tucasno;
+        termCard.setAttribute("draggable", "true");
+        termCard.style.left = usedPositions[index + 12].x + "px";
+        termCard.style.top = usedPositions[index + 12].y + "px";
+        termCard.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", termCard.id);
+          if (!startTime) {
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+          }
+        });
+        board.appendChild(termCard);
+      });
+    }
+    
+    document.getElementById("reset-button").addEventListener("click", initializeGame);
+    initializeGame();
+  </script>
+</body>
+</html>
